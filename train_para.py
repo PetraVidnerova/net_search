@@ -43,6 +43,7 @@ def evaluate_task(task_config, device):
     netstr, train_cfg, input_shape, random_seed = task_config
     try:
         name, net =  create_network(netstr, input_shape, random_seed=random_seed)
+        print(f"Going to evaluate network {name}")
         evaluate_network(net, train_cfg, random_seed=random_seed, device=device)
     except RuntimeError as e:
         if "CUDA out of memory" in str(e):
@@ -51,9 +52,10 @@ def evaluate_task(task_config, device):
         else:
             print(f"Network {name}: ", e)
             return
-                  
+
+    print(f"Evaluation of {name} finished. Saving ...")    
     torch.save(net, f"{name}.pt")
-    
+    print(f"{name}.pt saved.")
     
 @click.command()
 @click.argument('networks')
