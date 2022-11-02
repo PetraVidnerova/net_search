@@ -20,7 +20,7 @@ from data import create_data_loader
 from pool import Pool
 
 PRETRAINED=False
-BATCH_SIZE=512
+BATCH_SIZE=256
 
 def evaluate_network(net, train_cfg, random_seed=None, device="cpu"):
     if random_seed is not None:
@@ -41,8 +41,18 @@ def evaluate_network(net, train_cfg, random_seed=None, device="cpu"):
 
 def evaluate_task(task_config, device):
     netstr, train_cfg, input_shape, random_seed = task_config
-    name, net =  create_network(netstr, input_shape, random_seed=random_seed)
-    evaluate_network(net, train_cfg, random_seed=random_seed, device=device)
+    try:
+        name, net =  create_network(netstr, input_shape, random_seed=random_seed)
+        evaluate_network(net, train_cfg, random_seed=random_seed, device=device)
+    except RuntimeError as e:
+        if "CUDA out of memory" in str(e):
+            print(f"Network {name} out of memory.")
+            return
+        else:
+            print(f"Network {name}: ", e)
+            return
+                  
+    torch.save(net, f"{name}.pt")
     
     
 @click.command()

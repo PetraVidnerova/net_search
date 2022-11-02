@@ -15,8 +15,8 @@ class Pool:
 
     
     def __init__(self, processors, evalfunc, devices):
-        self.querries = Queue()
-        self.answers = Queue()
+        self.querries = Queue(1000)
+        self.answers = Queue(1000)
 
         self.workers = []
         for i in range(processors):
