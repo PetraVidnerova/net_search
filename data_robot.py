@@ -12,9 +12,6 @@ def create_data_loader(batch_size, train_val=True, test=True):
             1,5,7,8,10,11,13,14,16,17,19,20,22,23,25,26,28,29,31,32,34,35,37,38,40,41,
             43,44,46,48,50,51,53,54,56,57,59,60,62,63,65,66,71,72
         ]
-        test_list = [
-            6,9,12,15,18,21,24,27,30,33,36,39,42,45,49,52,55,58,61,64,67,73
-        ]
 
         random.shuffle(train_list)
         train_list, val_list = train_list[:-11], train_list[-11:]
