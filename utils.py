@@ -60,8 +60,9 @@ def train(net,
         print(f"Loss in epoch {epoch} :::: {loss_ep/len(train_dl)}")
 
         with torch.no_grad():
-            num_correct = 0
-            num_samples = 0
+            # num_correct = 0
+            # num_samples = 0
+            val_loss = 0
             print("Computing validation accuracy ...")
             with tqdm(total=len(val_dl)) as t:
                 for batch_idx, (data,targets) in enumerate(val_dl):
@@ -69,21 +70,22 @@ def train(net,
                     targets = targets.to(device=device)
                     ## Forward Pass
                     scores = net(data)
-                    _, predictions = scores.max(1)
-                    num_correct += (predictions == targets).sum()
-                    num_samples += predictions.size(0)
+                    val_loss += criterion(scores, targets).item()
                     t.update()
             print(
-                f"VAL accuracy: {float(num_correct) / float(num_samples) * 100:.2f}"
+                f"VAL loss: {val_loss/len(val_dl)}"
             )
 
     return net
 
 
-def evaluate(net, test_dl, device="cpu"):
+def evaluate(net, test_dl, criterion, device="cpu"):
     net.eval()
-    num_correct = 0
-    num_samples = 0
+    val_loss = 0
+    if criterion is None:
+        raise ValueError("You have to specify the criterion.")
+    criterion = get_class_name("torch.nn", criterion)()
+
     with torch.no_grad():
         for data, targets in tqdm(test_dl):
             data = data.to(device=device)
@@ -91,10 +93,9 @@ def evaluate(net, test_dl, device="cpu"):
             # Forward Pass
             scores = net(data)
             # geting predictions
-            _, predictions = scores.max(1)
-            num_correct += (predictions == targets).sum()
-            num_samples += predictions.size(0)
+            val_loss += criterion(scores, targets).item()
 
         print(
-            f"TEST accuracy: {float(num_correct) / float(num_samples) * 100:.2f}"
+            f"TEST loss: {val_loss/len(test_dl)}"
         )
+    return val_loss/len(test_dl)

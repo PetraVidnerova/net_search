@@ -1,5 +1,5 @@
-criterion: CrossEntropyLoss
-epochs: 1
+criterion: MSELoss
+epochs: 10
 optimizer: Adam
 optimizer_kwargs:
   lr: 0.0001

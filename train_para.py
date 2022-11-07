@@ -1,9 +1,11 @@
-import click
 import sys 
 from operator import mul
 from functools import reduce
 
 import numpy as np
+import pandas as pd
+
+import click
 
 from tqdm import tqdm 
 import torch
@@ -16,11 +18,12 @@ from torch.multiprocessing import set_start_method
 from utils import train, evaluate
 from config import read_config
 from load_networks import load_network_configs, create_network
-from data import create_data_loader
+from data_robot import create_data_loader
 from pool import Pool
 
 PRETRAINED=False
-BATCH_SIZE=256
+BATCH_SIZE=64
+
 
 def evaluate_network(net, train_cfg, random_seed=None, device="cpu"):
     if random_seed is not None:
@@ -36,7 +39,7 @@ def evaluate_network(net, train_cfg, random_seed=None, device="cpu"):
         device=device
     )
     _, _, test_dl = create_data_loader(BATCH_SIZE, train_val=False, test=True)
-    evaluate(net, test_dl, device)
+    return evaluate(net, test_dl, train_cfg["criterion"], device)
     
 
 def evaluate_task(task_config, device):
@@ -44,26 +47,28 @@ def evaluate_task(task_config, device):
     try:
         name, net =  create_network(netstr, input_shape, random_seed=random_seed)
         print(f"Going to evaluate network {name}")
-        evaluate_network(net, train_cfg, random_seed=random_seed, device=device)
+        res = evaluate_network(net, train_cfg, random_seed=random_seed, device=device)
     except RuntimeError as e:
         if "CUDA out of memory" in str(e):
             print(f"Network {name} out of memory.")
-            return
+            return name, None
         else:
             print(f"Network {name}: ", e)
-            return
+            return name, None
 
     print(f"Evaluation of {name} finished. Saving ...")    
     torch.save(net, f"{name}.pt")
     print(f"{name}.pt saved.")
+    return name, res
     
 @click.command()
 @click.argument('networks')
 @click.argument('traincfg', default="train_cfg_example.yaml")
 def test(networks, traincfg):
+
     
     train_cfg = read_config(traincfg)
-    input_shape = (3, 227, 227)
+    input_shape = (1, 512, 512)
     
     if torch.cuda.is_available():
         processors = torch.cuda.device_count()
@@ -71,9 +76,11 @@ def test(networks, traincfg):
     else:
         devices = ["cpu"] * 2
         processors = 2
-    
+
+    set_start_method('spawn')
     pool = Pool(processors=processors, evalfunc=evaluate_task, devices=devices)
 
+    results = []
     num = 0
     for cfg in load_network_configs(networks):
         
@@ -82,22 +89,15 @@ def test(networks, traincfg):
         num += 1
 
     for _ in range(num):
-        pool.getAnswer()
-
+        name, res = pool.getAnswer()
+        results.append({"network_name": name, "result": res})
     pool.close()
-    print("FINISHED")
-    # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu') 
-    # train_cfg = read_config(traincfg)
-
-    # for name, net in  load_network(networks, input_shape=(3, 227,227), random_seed=7):
-        
-    #     print(net)
-    #     evaluate_network(net, train_cfg, random_seed=42, device=device)
-        
-    #     torch.save(net, f"{name}.pt")
-
-
+    print("EVALUATION FINISHED")
+    df = pd.DataFrame(results)
+    print(df)
+    df.to_csv("results.csv")
+    print("Results saved to results.csv")
+    
 
 if __name__ == "__main__":
-    set_start_method('spawn')
     test()
